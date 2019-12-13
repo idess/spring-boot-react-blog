@@ -1,6 +1,6 @@
 import { createAction, handleActions } from 'redux-actions';
 
-import { Map } from 'immutable';
+import { Map, fromJS } from 'immutable';
 import { pender } from 'redux-pender';
 
 import * as api from 'lib/api';
@@ -8,17 +8,20 @@ import { Storage } from 'lib/storage';
 
 //action types
 const LOGIN = 'auth/LOGIN'
+const SOCIAL_LOGIN = 'auth/SOCIAL_LOGIN'
 const LOGOUT = 'auth/LOGOUT'
 const GET_USER = 'auth/GET_USER';
 
 export const login = createAction(LOGIN, api.login);
+export const socialLogin = createAction(SOCIAL_LOGIN);
 export const logout = createAction(LOGOUT);
 export const getUser = createAction(GET_USER, api.getUser);
 
 const initialState = Map({
   isAuthenticated: false,
   loginSuccess: false,
-  loginError: false // Errors returned from server side 
+  loginError: false,
+  currentUser: Map({})
 });
 
 export default handleActions({
@@ -34,6 +37,16 @@ export default handleActions({
 
     return state.set('isAuthenticated', false)
       .set('loginSuccess', false);
+  },
+  [SOCIAL_LOGIN]: (state, action) => {
+    console.log("SOCIAL LOGIN onSuccess")
+    const rememberMe = false;
+    if (rememberMe) {
+      Storage.local.set("__AUTH__", action.payload);
+    } else {
+      Storage.session.set("__AUTH__", action.payload);
+    }
+    return state.set('isAuthenticated', true);
   },
   ...pender({
     type: LOGIN,
@@ -60,8 +73,9 @@ export default handleActions({
   ...pender({
     type: GET_USER,
     onSuccess: (state, action) => {
-      console.log("GET_USER onSuccess")
-      return state.set('isAuthenticated', true);
+      const { data: content } = action.payload;
+      return state.set('isAuthenticated', true)
+                  .set('currentUser', fromJS(content));
     },
     onFailure: (state, action) => {
       console.log("GET_USER onFailure")

@@ -6,7 +6,7 @@ import me.ktkim.blog.security.oauth2.CustomOAuth2UserService;
 import me.ktkim.blog.security.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import me.ktkim.blog.security.oauth2.OAuth2AuthenticationFailureHandler;
 import me.ktkim.blog.security.oauth2.OAuth2AuthenticationSuccessHandler;
-import me.ktkim.blog.security.service.DatabaseUserDetailsService;
+import me.ktkim.blog.security.service.CustomUserDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,7 +34,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Autowired
-    private DatabaseUserDetailsService databaseUserDetailsService;
+    private CustomUserDetailsService customUserDetailsService;
 
     @Autowired
     private CustomOAuth2UserService customOAuth2UserService;
@@ -47,14 +47,13 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Autowired
     public void configure(AuthenticationManagerBuilder auth) throws Exception {
-        auth.userDetailsService(databaseUserDetailsService)
+        auth.userDetailsService(customUserDetailsService)
                 .passwordEncoder(customPasswordEncoder());
     }
 
-
     @Bean
-    public DatabaseUserDetailsService userDetailsService() {
-        return new DatabaseUserDetailsService();
+    public CustomUserDetailsService userDetailsService() {
+        return new CustomUserDetailsService();
     }
 
     @Override
@@ -70,6 +69,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
             public String encode(CharSequence rawPassword) {
                 return BCrypt.hashpw(rawPassword.toString(), BCrypt.gensalt(4));
             }
+
             @Override
             public boolean matches(CharSequence rawPassword, String encodedPassword) {
                 return BCrypt.checkpw(rawPassword.toString(), encodedPassword);
@@ -99,7 +99,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers(HttpMethod.OPTIONS, "/**")
                 .antMatchers("/app/**/*.{js,html}")
                 .antMatchers("/content/**")
-                .antMatchers("/swagger-ui..html")
+                .antMatchers("/swagger-ui.html")
                 .antMatchers("/h2-console/**");
     }
 
@@ -123,9 +123,22 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .authenticationEntryPoint(new Http401ErrorEntryPoint())
                 .and()
                 .authorizeRequests()
+                .antMatchers("/",
+                        "/error",
+                        "/favicon.ico",
+                        "/**/*.png",
+                        "/**/*.gif",
+                        "/**/*.svg",
+                        "/**/*.jpg",
+                        "/**/*.html",
+                        "/**/*.css",
+                        "/**/*.js")
+                .permitAll()
                 .antMatchers(HttpMethod.GET, "/api/posts/**").permitAll()
-                .antMatchers("/", "/error", "/api/authenticate/**", "/api/register", "/auth/authenticate"
-                        , "/auth/signup", "/oauth2/**", "/h2-console/**", "/swagger-ui.html")
+                .antMatchers(HttpMethod.GET, "/api/comments/**").permitAll()
+                .antMatchers("/", "/error", "/api/authenticate/**", "/api/register",
+                        "/auth/authenticate", "/auth/signup", "/oauth2/**", "/h2-console/**",
+                        "/v2/**", "/swagger-ui.html", "/swagger-resources/**")
                 .permitAll()
                 .anyRequest()
                 .authenticated()
